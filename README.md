@@ -2,7 +2,7 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/dgavrilov/imgpalette.svg)](https://pkg.go.dev/github.com/dgavrilov/imgpalette)
 [![Go Report Card](https://goreportcard.com/badge/github.com/dgavrilov/imgpalette)](https://goreportcard.com/report/github.com/dgavrilov/imgpalette)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/dgavrilov/imgpalette)](https://github.com/dgavrilov/imgpalette/blob/main/go.mod)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/dgavrilov/imgpalette)](https://github.com/dgavrilov/imgpalette/blob/master/go.mod)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 `imgpalette` is a small Go library for extracting dominant colors from images using only the Go standard library.
