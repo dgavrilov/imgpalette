@@ -1,4 +1,3 @@
-// Package imgpalette extracts palette and color utilities from images.
 package imgpalette
 
 import (
@@ -9,7 +8,7 @@ import (
 	"os"
 )
 
-// Accent returns a saturated and noticeable accent color from image.
+// Accent returns a saturated, visually noticeable color from an image.
 func Accent(img image.Image, opts ...Option) (Color, error) {
 	if img == nil {
 		return Color{}, ErrNilImage
@@ -32,7 +31,7 @@ func Accent(img image.Image, opts ...Option) (Color, error) {
 	return accent, nil
 }
 
-// AccentReader decodes an image from reader and returns a saturated accent color.
+// AccentReader decodes an image from r and returns an accent color.
 func AccentReader(r io.Reader, opts ...Option) (Color, error) {
 	cfg, err := resolveConfig(opts...)
 	if err != nil {
@@ -42,7 +41,7 @@ func AccentReader(r io.Reader, opts ...Option) (Color, error) {
 	return accentReaderWithConfig(r, cfg)
 }
 
-// AccentFile opens an image file and returns a saturated accent color.
+// AccentFile opens an image file and returns an accent color.
 func AccentFile(path string, opts ...Option) (Color, error) {
 	cfg, err := resolveConfig(opts...)
 	if err != nil {
@@ -81,6 +80,7 @@ func accentFileWithConfig(path string, cfg config) (Color, error) {
 	return accentReaderWithConfig(imageFile, cfg)
 }
 
+// pickAccent scores palette colors by saturation, coverage, and readability.
 func pickAccent(palette Palette, cfg config, applyThresholds bool) (Color, bool) {
 	bestIndex := -1
 	bestScore := -1.0
@@ -103,7 +103,7 @@ func pickAccent(palette Palette, cfg config, applyThresholds bool) (Color, bool)
 			}
 		}
 
-		// Keep accent readable: penalize colors too close to black/white.
+		// Keep accent readable by penalizing colors too close to black or white.
 		contrastPotential := 1 - math.Abs(2*brightness-1)
 		score := 0.55*saturation + 0.30*coverage + 0.15*contrastPotential
 

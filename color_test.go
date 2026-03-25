@@ -79,4 +79,3 @@ func TestMinFloatThirdWins(t *testing.T) {
 		t.Fatal("expected minFloat(3,2,1)=1")
 	}
 }
-

@@ -13,8 +13,8 @@ func TestColorRepresentations(t *testing.T) {
 	if c.String() != "#ffffdd" {
 		t.Fatalf("expected String() to be #ffffdd, got %q", c.String())
 	}
-	if c.HexString() != "#ffffdd" {
-		t.Fatalf("expected HexString() to be #ffffdd, got %q", c.HexString())
+	if c.Hex() != "#ffffdd" {
+		t.Fatalf("expected Hex() to be #ffffdd, got %q", c.Hex())
 	}
 	if c.RGBString() != "rgb(255,255,221)" {
 		t.Fatalf("expected RGBString() to be rgb(255,255,221), got %q", c.RGBString())
@@ -173,8 +173,8 @@ func TestSortByBrightnessTieBreak(t *testing.T) {
 // SortBySaturation: two fully-saturated colors → tie-break by Int().
 func TestSortBySaturationTieBreak(t *testing.T) {
 	p := Palette{
-		{RGBA: color.RGBA{R: 0, G: 0, B: 255, A: 255}},  // saturation=1, Int=0x0000ff
-		{RGBA: color.RGBA{R: 255, G: 0, B: 0, A: 255}},  // saturation=1, Int=0xff0000
+		{RGBA: color.RGBA{R: 0, G: 0, B: 255, A: 255}}, // saturation=1, Int=0x0000ff
+		{RGBA: color.RGBA{R: 255, G: 0, B: 0, A: 255}}, // saturation=1, Int=0xff0000
 	}
 	p.SortBySaturation()
 	// Both saturation=1; lower int (blue) comes first.

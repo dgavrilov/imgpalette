@@ -1,6 +1,6 @@
 package imgpalette
 
-// ColorSpace selects distance space for palette extraction.
+// ColorSpace selects the color space used for palette binning.
 type ColorSpace int
 
 const (
@@ -50,28 +50,28 @@ func SampleStride(n int) Option {
 	}
 }
 
-// Resize sets max image side before extraction (never upscales).
+// Resize sets the maximum image side before extraction and never upscales.
 func Resize(n int) Option {
 	return func(cfg *config) {
 		cfg.resizeTo = n
 	}
 }
 
-// Space sets preferred color space for extraction heuristics.
+// Space sets the color space used for palette binning.
 func Space(space ColorSpace) Option {
 	return func(cfg *config) {
 		cfg.colorSpace = space
 	}
 }
 
-// MinSaturation sets minimum saturation threshold for accent-like selection.
+// MinSaturation sets the minimum saturation threshold for accent selection.
 func MinSaturation(v float64) Option {
 	return func(cfg *config) {
 		cfg.minSaturation = v
 	}
 }
 
-// MinCoverage sets minimum coverage threshold for accent-like selection.
+// MinCoverage sets the minimum coverage threshold for accent selection.
 func MinCoverage(v float64) Option {
 	return func(cfg *config) {
 		cfg.minCoverage = v

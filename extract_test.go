@@ -116,6 +116,40 @@ func TestExtractRespectsColorSpaceOption(t *testing.T) {
 	}
 }
 
+func TestExtractMergesNearDuplicateDominantBins(t *testing.T) {
+	img := image.NewNRGBA(image.Rect(0, 0, 20, 10))
+
+	for y := 0; y < 10; y++ {
+		for x := 0; x < 20; x++ {
+			switch {
+			case x < 8:
+				img.SetNRGBA(x, y, color.NRGBA{R: 3, G: 3, B: 3, A: 255})
+			case x < 14:
+				img.SetNRGBA(x, y, color.NRGBA{R: 8, G: 8, B: 7, A: 255})
+			case x < 17:
+				img.SetNRGBA(x, y, color.NRGBA{R: 12, G: 15, B: 10, A: 255})
+			default:
+				img.SetNRGBA(x, y, color.NRGBA{R: 90, G: 160, B: 50, A: 255})
+			}
+		}
+	}
+
+	palette, err := Extract(img, Count(3))
+	if err != nil {
+		t.Fatalf("Extract returned error: %v", err)
+	}
+	if len(palette) != 2 {
+		t.Fatalf("expected merged palette of 2 colors, got %d", len(palette))
+	}
+
+	if palette[0].Count != 170 {
+		t.Fatalf("expected merged dark color count 170, got %d", palette[0].Count)
+	}
+	if palette[1].RGBA.G <= palette[1].RGBA.R || palette[1].RGBA.G <= palette[1].RGBA.B {
+		t.Fatalf("expected second palette color to remain green-like, got %+v", palette[1].RGBA)
+	}
+}
+
 func TestExtractReaderDecodeErrorType(t *testing.T) {
 	_, err := ExtractReader(bytes.NewReader([]byte("not-an-image")))
 	if err == nil {
@@ -226,7 +260,7 @@ func TestAccentPrefersSaturatedColor(t *testing.T) {
 
 func TestPickAccentThresholdSkips(t *testing.T) {
 	palette := Palette{
-		{RGBA: color.RGBA{R: 255, G: 0, B: 0, A: 255}, Count: 10, Ratio: 0.05}, // skipped by minCoverage
+		{RGBA: color.RGBA{R: 255, G: 0, B: 0, A: 255}, Count: 10, Ratio: 0.05},    // skipped by minCoverage
 		{RGBA: color.RGBA{R: 120, G: 120, B: 120, A: 255}, Count: 9, Ratio: 0.95}, // skipped by filterGray
 	}
 	_, ok := pickAccent(palette, config{

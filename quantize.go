@@ -6,7 +6,7 @@ import (
 	"image/color"
 )
 
-// Quantize returns a color-quantized copy of img using the extracted palette.
+// Quantize returns a copy of img redrawn with colors from the extracted palette.
 func Quantize(img image.Image, opts ...Option) (image.Image, error) {
 	palette, err := Extract(img, opts...)
 	if err != nil {

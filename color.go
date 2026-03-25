@@ -17,11 +17,11 @@ type Color struct {
 
 // String returns the lowercase hex representation (for example: #ffffdd).
 func (c Color) String() string {
-	return c.HexString()
+	return c.Hex()
 }
 
-// HexString returns the lowercase hex representation (for example: #ffffdd).
-func (c Color) HexString() string {
+// Hex returns the lowercase hex representation (for example: #ffffdd).
+func (c Color) Hex() string {
 	return fmt.Sprintf("#%02x%02x%02x", c.RGBA.R, c.RGBA.G, c.RGBA.B)
 }
 

@@ -21,7 +21,7 @@ func (p Palette) Colors() []color.RGBA {
 func (p Palette) Hex() []string {
 	hexColors := make([]string, 0, len(p))
 	for _, paletteColor := range p {
-		hexColors = append(hexColors, paletteColor.HexString())
+		hexColors = append(hexColors, paletteColor.Hex())
 	}
 	return hexColors
 }

@@ -1,8 +1,11 @@
 package imgpalette
 
 import (
+	"errors"
 	"image"
 	"image/color"
+	"image/png"
+	"os"
 	"testing"
 )
 
@@ -37,7 +40,7 @@ func TestRenderPaletteWithOptions(t *testing.T) {
 	out := RenderPalette(
 		p,
 		RenderSwatchWidth(10),
-		RenderHeight(6),
+		RenderSwatchHeight(6),
 		RenderPadding(2),
 		RenderBackground(bg),
 	)
@@ -64,11 +67,11 @@ func TestRenderPaletteNegativeOptions(t *testing.T) {
 	p := Palette{{RGBA: color.RGBA{R: 255, G: 0, B: 0, A: 255}}}
 	out := RenderPalette(p,
 		RenderSwatchWidth(-1),
-		RenderHeight(-1),
+		RenderSwatchHeight(-1),
 		RenderPadding(-3),
 	)
 	// Negative values clamped → defaults (64×64).
-	if out.Bounds().Dx() != defaultRenderSwatchWidth || out.Bounds().Dy() != defaultRenderHeight {
+	if out.Bounds().Dx() != defaultRenderSwatchWidth || out.Bounds().Dy() != defaultRenderSwatchHeight {
 		t.Fatalf("expected default size after negative options, got %v", out.Bounds())
 	}
 }
@@ -107,4 +110,125 @@ func TestRenderPaletteWidthClamp(t *testing.T) {
 	if out.Bounds().Dx() < 1 {
 		t.Fatalf("expected width >= 1, got %d", out.Bounds().Dx())
 	}
+}
+
+func TestRenderFileDemo(t *testing.T) {
+	p := Palette{
+		{RGBA: color.RGBA{R: 255, G: 0, B: 0, A: 255}},
+		{RGBA: color.RGBA{R: 0, G: 255, B: 0, A: 255}},
+	}
+
+	path := t.TempDir() + "/demo.png"
+	if err := RenderFileDemo(path, p); err != nil {
+		t.Fatalf("RenderFileDemo returned error: %v", err)
+	}
+
+	// #nosec G304 -- test reads a temp file path created within the test.
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatalf("open demo png: %v", err)
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	img, err := png.Decode(file)
+	if err != nil {
+		t.Fatalf("decode demo png: %v", err)
+	}
+
+	expectedWidth := len(p)*demoRenderSwatchWidth + (len(p)+1)*demoRenderGap
+	expectedHeight := demoRenderSwatchHeight + 2*demoRenderGap
+	if img.Bounds().Dx() != expectedWidth || img.Bounds().Dy() != expectedHeight {
+		t.Fatalf("unexpected demo bounds: %v", img.Bounds())
+	}
+
+	if got := ToRGBA(img.At(0, 0)); got.A != 0 {
+		t.Fatalf("expected transparent background at image corner, got %v", got)
+	}
+	if got := ToRGBA(img.At(demoRenderGap/2, expectedHeight/2)); got.A != 0 {
+		t.Fatalf("expected transparent left margin, got %v", got)
+	}
+	if got := ToRGBA(img.At(demoRenderGap+demoRenderSwatchWidth+demoRenderGap/2, expectedHeight/2)); got.A != 0 {
+		t.Fatalf("expected transparent gap between swatches, got %v", got)
+	}
+	if got := ToRGBA(img.At(expectedWidth-demoRenderGap/2-1, expectedHeight/2)); got.A != 0 {
+		t.Fatalf("expected transparent right margin, got %v", got)
+	}
+
+	firstTileCenter := ToRGBA(img.At(demoRenderGap+demoRenderSwatchWidth/2, demoRenderGap+demoRenderSwatchHeight/2))
+	if firstTileCenter != (color.RGBA{R: 255, G: 0, B: 0, A: 255}) {
+		t.Fatalf("expected first swatch center to be red, got %v", firstTileCenter)
+	}
+
+	roundedCorner := ToRGBA(img.At(demoRenderGap, demoRenderGap))
+	if roundedCorner.A != 0 {
+		t.Fatalf("expected rounded tile corner to stay transparent, got %v", roundedCorner)
+	}
+
+	insideCorner := ToRGBA(img.At(demoRenderGap+demoRenderRadius, demoRenderGap+1))
+	if insideCorner != (color.RGBA{R: 255, G: 0, B: 0, A: 255}) {
+		t.Fatalf("expected tile interior near rounded corner to be painted, got %v", insideCorner)
+	}
+}
+
+func TestRenderFileDemoCreateError(t *testing.T) {
+	err := RenderFileDemo(t.TempDir(), Palette{{RGBA: color.RGBA{R: 255, A: 255}}})
+	if err == nil {
+		t.Fatal("expected error when trying to create demo png at directory path")
+	}
+}
+
+func TestRenderDemoPaletteEmpty(t *testing.T) {
+	out := renderDemoPalette(nil)
+	if out.Bounds().Dx() != 1 || out.Bounds().Dy() != 1 {
+		t.Fatalf("expected 1x1 image for empty demo palette, got %v", out.Bounds())
+	}
+	if got := ToRGBA(out.At(0, 0)); got.A != 0 {
+		t.Fatalf("expected empty demo palette image to stay transparent, got %v", got)
+	}
+}
+
+func TestRenderDemoPNGWriteError(t *testing.T) {
+	expectedErr := errors.New("write failed")
+	err := renderDemoPNG(failingWriter{err: expectedErr}, Palette{{RGBA: color.RGBA{R: 255, A: 255}}})
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected write error %v, got %v", expectedErr, err)
+	}
+}
+
+func TestFillRoundedRectNRGBAClampAndZeroRadius(t *testing.T) {
+	img := image.NewNRGBA(image.Rect(0, 0, 6, 4))
+	c := color.NRGBA{R: 1, G: 2, B: 3, A: 255}
+
+	fillRoundedRectNRGBA(img, -2, -1, 10, 8, -5, c)
+
+	if got := img.NRGBAAt(0, 0); got != c {
+		t.Fatalf("expected negative radius to clamp to filled rectangle, got %v", got)
+	}
+	if got := img.NRGBAAt(5, 3); got != c {
+		t.Fatalf("expected clamped rectangle to paint far corner, got %v", got)
+	}
+}
+
+func TestFillRoundedRectNRGBARadiusClamp(t *testing.T) {
+	img := image.NewNRGBA(image.Rect(0, 0, 10, 10))
+	c := color.NRGBA{R: 20, G: 30, B: 40, A: 255}
+
+	fillRoundedRectNRGBA(img, 2, 2, 6, 4, 99, c)
+
+	if got := img.NRGBAAt(2, 2); got.A != 0 {
+		t.Fatalf("expected oversized radius to keep rounded corner transparent, got %v", got)
+	}
+	if got := img.NRGBAAt(5, 3); got != c {
+		t.Fatalf("expected interior pixel to be painted after radius clamp, got %v", got)
+	}
+}
+
+type failingWriter struct {
+	err error
+}
+
+func (w failingWriter) Write(_ []byte) (int, error) {
+	return 0, w.err
 }

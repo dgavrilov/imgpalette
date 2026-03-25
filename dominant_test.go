@@ -355,8 +355,16 @@ func TestExtractPaletteFromImagePalettedTransparentBranches(t *testing.T) {
 	img.SetColorIndex(5, 0, 5)
 
 	got := extractPaletteFromImage(img, config{count: 3, sampleStride: 1, resizeTo: 256, colorSpace: SpaceOKLab})
-	if len(got) != 3 {
-		t.Fatalf("expected 3 colors after skipping transparent palette entries, got %d", len(got))
+	if len(got) != 2 {
+		t.Fatalf("expected 2 representative colors after skipping transparent palette entries, got %d", len(got))
+	}
+
+	totalCount := 0
+	for _, paletteColor := range got {
+		totalCount += paletteColor.Count
+	}
+	if totalCount != 3 {
+		t.Fatalf("expected total merged count 3, got %d", totalCount)
 	}
 }
 

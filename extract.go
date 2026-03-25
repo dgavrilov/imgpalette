@@ -19,7 +19,7 @@ import (
 	isample "github.com/dgavrilov/imgpalette/internal/sample"
 )
 
-// Extract returns extracted palette colors from an image.
+// Extract returns representative palette colors from an image.
 func Extract(img image.Image, opts ...Option) (Palette, error) {
 	if img == nil {
 		return nil, ErrNilImage
@@ -37,7 +37,7 @@ func Extract(img image.Image, opts ...Option) (Palette, error) {
 	return palette, nil
 }
 
-// ExtractReader decodes an image from reader and returns extracted palette colors.
+// ExtractReader decodes an image from r and returns representative palette colors.
 func ExtractReader(r io.Reader, opts ...Option) (Palette, error) {
 	cfg, err := resolveConfig(opts...)
 	if err != nil {
@@ -54,7 +54,7 @@ func ExtractReader(r io.Reader, opts ...Option) (Palette, error) {
 	return palette, nil
 }
 
-// ExtractFile opens image file and returns extracted palette colors.
+// ExtractFile opens an image file and returns representative palette colors.
 func ExtractFile(path string, opts ...Option) (Palette, error) {
 	cfg, err := resolveConfig(opts...)
 	if err != nil {
@@ -71,7 +71,7 @@ func ExtractFile(path string, opts ...Option) (Palette, error) {
 	return palette, nil
 }
 
-// extractPaletteFromImage returns palette colors from an image using config values.
+// extractPaletteFromImage bins sampled pixels and returns representative colors.
 func extractPaletteFromImage(img image.Image, cfg config) Palette {
 	if img == nil || cfg.count <= 0 {
 		return nil
@@ -134,30 +134,15 @@ func extractPaletteFromImage(img image.Image, cfg config) Palette {
 		totalSampledPixels += uint64(binStats.pixelCount)
 	}
 
-	dominantColors := make(Palette, 0, maxColors)
-	for i := 0; i < maxColors; i++ {
-		binStats := nonEmptyBins[i]
-		pixelCount := uint64(binStats.pixelCount)
-		dominantColors = append(dominantColors, Color{
-			RGBA: color.RGBA{
-				R: uint8Clamped(binStats.redSum / pixelCount),
-				G: uint8Clamped(binStats.greenSum / pixelCount),
-				B: uint8Clamped(binStats.blueSum / pixelCount),
-				A: 255,
-			},
-			Count: int(binStats.pixelCount),
-			Ratio: float64(binStats.pixelCount) / float64(totalSampledPixels),
-		})
-	}
-
-	return dominantColors
+	return selectDominantColors(nonEmptyBins, maxColors, totalSampledPixels)
 }
 
 const (
-	quantizationBits     = 5
-	quantizationMask     = (1 << quantizationBits) - 1
-	quantizedBinsPerAxis = 1 << quantizationBits
-	totalQuantizedBins   = quantizedBinsPerAxis * quantizedBinsPerAxis * quantizedBinsPerAxis
+	quantizationBits              = 5
+	quantizationMask              = (1 << quantizationBits) - 1
+	quantizedBinsPerAxis          = 1 << quantizationBits
+	totalQuantizedBins            = quantizedBinsPerAxis * quantizedBinsPerAxis * quantizedBinsPerAxis
+	defaultPaletteMergeSimilarity = 0.08
 )
 
 type quantizedBinStats struct {
@@ -166,6 +151,61 @@ type quantizedBinStats struct {
 	redSum     uint64
 	greenSum   uint64
 	blueSum    uint64
+}
+
+// selectDominantColors merges near-duplicate bins and truncates the result.
+func selectDominantColors(nonEmptyBins []quantizedBinStats, maxColors int, totalSampledPixels uint64) Palette {
+	dominantColors := make(Palette, 0, maxColors)
+	for _, binStats := range nonEmptyBins {
+		candidate := colorFromBinStats(binStats)
+
+		// Merge near-duplicate bins before truncating so the default palette
+		// contains fewer visually redundant colors.
+		merged := false
+		for i := range dominantColors {
+			if Distance(candidate.RGBA, dominantColors[i].RGBA) > defaultPaletteMergeSimilarity {
+				continue
+			}
+			dominantColors[i] = mergeColors(dominantColors[i], candidate)
+			merged = true
+			break
+		}
+		if merged {
+			continue
+		}
+		if len(dominantColors) >= maxColors {
+			continue
+		}
+		dominantColors = append(dominantColors, candidate)
+	}
+
+	sort.Slice(dominantColors, func(i, j int) bool {
+		if dominantColors[i].Count == dominantColors[j].Count {
+			return dominantColors[i].Int() < dominantColors[j].Int()
+		}
+		return dominantColors[i].Count > dominantColors[j].Count
+	})
+
+	if totalSampledPixels > 0 {
+		for i := range dominantColors {
+			dominantColors[i].Ratio = float64(dominantColors[i].Count) / float64(totalSampledPixels)
+		}
+	}
+
+	return dominantColors
+}
+
+func colorFromBinStats(binStats quantizedBinStats) Color {
+	pixelCount := uint64(binStats.pixelCount)
+	return Color{
+		RGBA: color.RGBA{
+			R: uint8Clamped(binStats.redSum / pixelCount),
+			G: uint8Clamped(binStats.greenSum / pixelCount),
+			B: uint8Clamped(binStats.blueSum / pixelCount),
+			A: 255,
+		},
+		Count: int(binStats.pixelCount),
+	}
 }
 
 func addPixelToQuantizedBin(quantizeRed, quantizeGreen, quantizeBlue, sumRed, sumGreen, sumBlue uint8, binPixelCounts *[totalQuantizedBins]uint32, binRedSums, binGreenSums, binBlueSums *[totalQuantizedBins]uint64) {

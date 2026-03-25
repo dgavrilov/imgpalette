@@ -75,4 +75,3 @@ func TestResizeToMaxSideNewHeightClamp(t *testing.T) {
 		t.Fatalf("expected newHeight >= 1, got %d", resized.Bounds().Dy())
 	}
 }
-

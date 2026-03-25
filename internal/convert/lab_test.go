@@ -30,4 +30,3 @@ func TestRGBAToLabGray(t *testing.T) {
 		t.Fatalf("unexpected L for mid-gray: %f", lab.L)
 	}
 }
-
